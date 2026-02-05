@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polymarket-Kalshi Arbitrage Checker</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      color: #e0e0e0;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      padding: 40px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(90deg, #00d4ff, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 1.1rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #00d4ff;
+    }
+
+    .stat-label {
+      color: #888;
+      font-size: 0.9rem;
+      margin-top: 5px;
+    }
+
+    .assets-tracked {
+      background: rgba(255,255,255,0.03);
+      border-radius: 12px;
+      padding: 15px 20px;
+      margin-bottom: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .asset-badge {
+      background: rgba(124, 58, 237, 0.2);
+      color: #a78bfa;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .asset-badge.crypto { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .asset-badge.stocks { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .asset-badge.commodities { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+
+    .opportunities {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .opportunity-card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .opportunity-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+
+    .opportunity-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .opportunity-asset {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .asset-name {
+      font-size: 1.5rem;
+      font-weight: bold;
+    }
+
+    .confidence-badge {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .confidence-high { background: #059669; color: white; }
+    .confidence-medium { background: #d97706; color: white; }
+    .confidence-low { background: #6b7280; color: white; }
+
+    .spread-info {
+      text-align: right;
+    }
+
+    .spread-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #10b981;
+    }
+
+    .profit-label {
+      color: #888;
+      font-size: 0.85rem;
+    }
+
+    .opportunity-description {
+      color: #aaa;
+      margin-bottom: 15px;
+      font-size: 0.95rem;
+    }
+
+    .markets-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .markets-table th,
+    .markets-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .markets-table th {
+      color: #888;
+      font-weight: 500;
+      font-size: 0.85rem;
+    }
+
+    .platform-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .platform-polymarket { background: rgba(124, 58, 237, 0.2); color: #a78bfa; }
+    .platform-kalshi { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+
+    .side-yes { color: #10b981; }
+    .side-no { color: #ef4444; }
+
+    .market-link {
+      color: #00d4ff;
+      text-decoration: none;
+    }
+
+    .market-link:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: #888;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #00d4ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .refresh-btn {
+      background: linear-gradient(90deg, #7c3aed, #00d4ff);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    .refresh-btn:hover {
+      opacity: 0.9;
+    }
+
+    .refresh-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .last-updated {
+      color: #666;
+      font-size: 0.85rem;
+      margin-top: 10px;
+    }
+
+    .demo-notice {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      color: #fbbf24;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    footer {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+      font-size: 0.85rem;
+      margin-top: 40px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    @media (max-width: 768px) {
+      h1 { font-size: 1.8rem; }
+      .opportunity-header { flex-direction: column; }
+      .spread-info { text-align: left; margin-top: 10px; }
+      .markets-table { font-size: 0.85rem; }
+      .markets-table th, .markets-table td { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Polymarket-Kalshi Arbitrage</h1>
+      <p class="subtitle">Real-time prediction market opportunities</p>
+    </header>
+
+    <div class="demo-notice">
+      Demo Mode: Showing simulated market data. Connect API keys for live data.
+    </div>
+
+    <div class="assets-tracked">
+      <span style="color: #888; margin-right: 10px;">Tracking:</span>
+      <span class="asset-badge crypto">BTC</span>
+      <span class="asset-badge crypto">ETH</span>
+      <span class="asset-badge crypto">SOL</span>
+      <span class="asset-badge stocks">SPY</span>
+      <span class="asset-badge stocks">TSLA</span>
+      <span class="asset-badge stocks">AAPL</span>
+      <span class="asset-badge stocks">GOOGL</span>
+      <span class="asset-badge stocks">NVDA</span>
+      <span class="asset-badge commodities">GOLD</span>
+    </div>
+
+    <div class="stats" id="stats">
+      <div class="stat-card">
+        <div class="stat-value" id="total-opportunities">-</div>
+        <div class="stat-label">Opportunities Found</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="high-confidence">-</div>
+        <div class="stat-label">High Confidence</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="avg-spread">-</div>
+        <div class="stat-label">Avg. Spread</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="markets-count">-</div>
+        <div class="stat-label">Markets Analyzed</div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-bottom: 30px;">
+      <button class="refresh-btn" onclick="fetchData()" id="refresh-btn">Refresh Data</button>
+      <div class="last-updated" id="last-updated"></div>
+    </div>
+
+    <div id="opportunities-container">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p>Loading arbitrage opportunities...</p>
+      </div>
+    </div>
+
+    <footer>
+      <p>For informational purposes only. Always verify opportunities before trading.</p>
+      <p style="margin-top: 10px;">Prediction market trading involves risk.</p>
+    </footer>
+  </div>
+
+  <script>
+    async function fetchData() {
+      const btn = document.getElementById('refresh-btn');
+      const container = document.getElementById('opportunities-container');
+
+      btn.disabled = true;
+      btn.textContent = 'Loading...';
+
+      try {
+        const response = await fetch('/api/arbitrage');
+        const result = await response.json();
+
+        if (result.success) {
+          updateStats(result.data.summary, result.data.markets);
+          renderOpportunities(result.data.opportunities);
+          document.getElementById('last-updated').textContent =
+            `Last updated: ${new Date(result.timestamp).toLocaleTimeString()}`;
+        } else {
+          container.innerHTML = `<div class="loading"><p>Error: ${result.error}</p></div>`;
+        }
+      } catch (error) {
+        container.innerHTML = `<div class="loading"><p>Error fetching data: ${error.message}</p></div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Refresh Data';
+      }
+    }
+
+    function updateStats(summary, markets) {
+      document.getElementById('total-opportunities').textContent = summary.totalOpportunities;
+      document.getElementById('high-confidence').textContent = summary.highConfidence;
+      document.getElementById('avg-spread').textContent = summary.avgSpread.toFixed(2) + '%';
+      document.getElementById('markets-count').textContent = markets.polymarket + markets.kalshi;
+    }
+
+    function renderOpportunities(opportunities) {
+      const container = document.getElementById('opportunities-container');
+
+      if (opportunities.length === 0) {
+        container.innerHTML = `
+          <div class="loading">
+            <p>No arbitrage opportunities found at current spread threshold.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '<div class="opportunities">' + opportunities.map(opp => `
+        <div class="opportunity-card">
+          <div class="opportunity-header">
+            <div class="opportunity-asset">
+              <span class="asset-name">${opp.asset}</span>
+              <span class="confidence-badge confidence-${opp.confidence}">${opp.confidence}</span>
+            </div>
+            <div class="spread-info">
+              <div class="spread-value">${opp.spread.toFixed(2)}%</div>
+              <div class="profit-label">Potential Profit: ${opp.potentialProfit.toFixed(2)}%</div>
+            </div>
+          </div>
+          <div class="opportunity-description">${opp.description}</div>
+          <table class="markets-table">
+            <thead>
+              <tr>
+                <th>Platform</th>
+                <th>Market</th>
+                <th>Side</th>
+                <th>Price</th>
+                <th>Link</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${opp.markets.map(m => `
+                <tr>
+                  <td><span class="platform-badge platform-${m.platform}">${m.platform}</span></td>
+                  <td>${truncate(m.market.title, 40)}</td>
+                  <td class="side-${m.side}">${m.side.toUpperCase()}</td>
+                  <td>${(m.outcome.price * 100).toFixed(1)}%</td>
+                  <td><a href="${m.market.url}" target="_blank" class="market-link">View</a></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          ${opp.expiresAt ? `<div style="color: #666; font-size: 0.85rem; margin-top: 10px;">Expires: ${new Date(opp.expiresAt).toLocaleString()}</div>` : ''}
+        </div>
+      `).join('') + '</div>';
+    }
+
+    function truncate(str, len) {
+      return str.length > len ? str.substring(0, len) + '...' : str;
+    }
+
+    // Initial load
+    fetchData();
+
+    // Auto-refresh every 30 seconds
+    setInterval(fetchData, 30000);
+  </script>
+</body>
+</html>
