@@ -5,32 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Polymarket-Kalshi Arbitrage Checker</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       min-height: 100vh;
       color: #e0e0e0;
     }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    header {
-      text-align: center;
-      padding: 40px 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      margin-bottom: 30px;
-    }
-
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    header { text-align: center; padding: 40px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 30px; }
     h1 {
       font-size: 2.5rem;
       background: linear-gradient(90deg, #00d4ff, #7c3aed);
@@ -39,244 +22,51 @@
       background-clip: text;
       margin-bottom: 10px;
     }
-
-    .subtitle {
-      color: #888;
-      font-size: 1.1rem;
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-
-    .stat-card {
-      background: rgba(255,255,255,0.05);
-      border-radius: 12px;
-      padding: 20px;
-      text-align: center;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .stat-value {
-      font-size: 2rem;
-      font-weight: bold;
-      color: #00d4ff;
-    }
-
-    .stat-label {
-      color: #888;
-      font-size: 0.9rem;
-      margin-top: 5px;
-    }
-
-    .assets-tracked {
-      background: rgba(255,255,255,0.03);
-      border-radius: 12px;
-      padding: 15px 20px;
-      margin-bottom: 30px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .asset-badge {
-      background: rgba(124, 58, 237, 0.2);
-      color: #a78bfa;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 500;
-    }
-
+    .subtitle { color: #888; font-size: 1.1rem; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .stat-card { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); }
+    .stat-value { font-size: 2rem; font-weight: bold; color: #00d4ff; }
+    .stat-label { color: #888; font-size: 0.9rem; margin-top: 5px; }
+    .assets-tracked { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 15px 20px; margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
+    .asset-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; }
     .asset-badge.crypto { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
     .asset-badge.stocks { background: rgba(16, 185, 129, 0.2); color: #34d399; }
     .asset-badge.commodities { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
-
-    .opportunities {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .opportunity-card {
-      background: rgba(255,255,255,0.05);
-      border-radius: 16px;
-      padding: 24px;
-      border: 1px solid rgba(255,255,255,0.1);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-
-    .opportunity-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    }
-
-    .opportunity-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .opportunity-asset {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .asset-name {
-      font-size: 1.5rem;
-      font-weight: bold;
-    }
-
-    .confidence-badge {
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-
+    .opportunities { display: flex; flex-direction: column; gap: 20px; }
+    .opportunity-card { background: rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; border: 1px solid rgba(255,255,255,0.1); transition: transform 0.2s; }
+    .opportunity-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+    .opportunity-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+    .opportunity-asset { display: flex; align-items: center; gap: 10px; }
+    .asset-name { font-size: 1.5rem; font-weight: bold; }
+    .confidence-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
     .confidence-high { background: #059669; color: white; }
     .confidence-medium { background: #d97706; color: white; }
     .confidence-low { background: #6b7280; color: white; }
-
-    .spread-info {
-      text-align: right;
-    }
-
-    .spread-value {
-      font-size: 1.8rem;
-      font-weight: bold;
-      color: #10b981;
-    }
-
-    .profit-label {
-      color: #888;
-      font-size: 0.85rem;
-    }
-
-    .opportunity-description {
-      color: #aaa;
-      margin-bottom: 15px;
-      font-size: 0.95rem;
-    }
-
-    .markets-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-
-    .markets-table th,
-    .markets-table td {
-      padding: 12px;
-      text-align: left;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-
-    .markets-table th {
-      color: #888;
-      font-weight: 500;
-      font-size: 0.85rem;
-    }
-
-    .platform-badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 500;
-    }
-
+    .spread-info { text-align: right; }
+    .spread-value { font-size: 1.8rem; font-weight: bold; color: #10b981; }
+    .profit-label { color: #888; font-size: 0.85rem; }
+    .opportunity-description { color: #aaa; margin-bottom: 15px; font-size: 0.95rem; }
+    .markets-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .markets-table th, .markets-table td { padding: 12px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .markets-table th { color: #888; font-weight: 500; font-size: 0.85rem; }
+    .platform-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; }
     .platform-polymarket { background: rgba(124, 58, 237, 0.2); color: #a78bfa; }
     .platform-kalshi { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-
     .side-yes { color: #10b981; }
     .side-no { color: #ef4444; }
-
-    .market-link {
-      color: #00d4ff;
-      text-decoration: none;
-    }
-
-    .market-link:hover {
-      text-decoration: underline;
-    }
-
-    .loading {
-      text-align: center;
-      padding: 60px;
-      color: #888;
-    }
-
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(255,255,255,0.1);
-      border-top-color: #00d4ff;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 20px;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .refresh-btn {
-      background: linear-gradient(90deg, #7c3aed, #00d4ff);
-      border: none;
-      padding: 12px 24px;
-      border-radius: 8px;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.2s;
-    }
-
-    .refresh-btn:hover {
-      opacity: 0.9;
-    }
-
-    .refresh-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .last-updated {
-      color: #666;
-      font-size: 0.85rem;
-      margin-top: 10px;
-    }
-
-    .demo-notice {
-      background: rgba(245, 158, 11, 0.1);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 20px;
-      color: #fbbf24;
-      font-size: 0.9rem;
-      text-align: center;
-    }
-
-    footer {
-      text-align: center;
-      padding: 40px 20px;
-      color: #666;
-      font-size: 0.85rem;
-      margin-top: 40px;
-      border-top: 1px solid rgba(255,255,255,0.1);
-    }
-
+    .market-link { color: #00d4ff; text-decoration: none; }
+    .market-link:hover { text-decoration: underline; }
+    .loading { text-align: center; padding: 60px; color: #888; }
+    .spinner { width: 40px; height: 40px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #00d4ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .refresh-btn { background: linear-gradient(90deg, #7c3aed, #00d4ff); border: none; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
+    .refresh-btn:hover { opacity: 0.9; }
+    .refresh-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .last-updated { color: #666; font-size: 0.85rem; margin-top: 10px; }
+    .status-notice { border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.9rem; text-align: center; }
+    .status-live { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #34d399; }
+    .status-error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; }
+    footer { text-align: center; padding: 40px 20px; color: #666; font-size: 0.85rem; margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.1); }
     @media (max-width: 768px) {
       h1 { font-size: 1.8rem; }
       .opportunity-header { flex-direction: column; }
@@ -293,12 +83,8 @@
       <p class="subtitle">Real-time prediction market opportunities</p>
     </header>
 
-    <div class="demo-notice" id="status-notice" style="display: none;">
-      Demo Mode: Showing simulated market data.
-    </div>
-
-    <div class="live-notice" id="live-notice" style="display: none; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; color: #34d399; font-size: 0.9rem; text-align: center;">
-      Live Data: Connected to Polymarket and Kalshi APIs
+    <div class="status-notice status-live" id="status-notice">
+      Connecting to live APIs...
     </div>
 
     <div class="assets-tracked">
@@ -314,7 +100,7 @@
       <span class="asset-badge commodities">GOLD</span>
     </div>
 
-    <div class="stats" id="stats">
+    <div class="stats">
       <div class="stat-card">
         <div class="stat-value" id="total-opportunities">-</div>
         <div class="stat-label">Opportunities Found</div>
@@ -352,37 +138,231 @@
   </div>
 
   <script>
+    // Asset configuration
+    const TRACKED_ASSETS = [
+      { symbol: 'BTC', keywords: ['bitcoin', 'btc'], category: 'crypto' },
+      { symbol: 'ETH', keywords: ['ethereum', 'eth'], category: 'crypto' },
+      { symbol: 'SOL', keywords: ['solana', 'sol'], category: 'crypto' },
+      { symbol: 'SPY', keywords: ['spy', 's&p 500', 's&p500'], category: 'stocks' },
+      { symbol: 'TSLA', keywords: ['tesla', 'tsla'], category: 'stocks' },
+      { symbol: 'AAPL', keywords: ['apple', 'aapl'], category: 'stocks' },
+      { symbol: 'GOOGL', keywords: ['google', 'googl', 'alphabet'], category: 'stocks' },
+      { symbol: 'NVDA', keywords: ['nvidia', 'nvda'], category: 'stocks' },
+      { symbol: 'GOLD', keywords: ['gold', 'xau'], category: 'commodities' },
+    ];
+
+    function detectAsset(text) {
+      const lowerText = text.toLowerCase();
+      for (const config of TRACKED_ASSETS) {
+        for (const keyword of config.keywords) {
+          if (lowerText.includes(keyword)) {
+            return { asset: config.symbol, category: config.category };
+          }
+        }
+      }
+      return { asset: null, category: 'other' };
+    }
+
+    // Fetch Kalshi markets (client-side)
+    async function fetchKalshiMarkets() {
+      const markets = [];
+      try {
+        const response = await fetch('https://api.elections.kalshi.com/trade-api/v2/markets?status=open&limit=200');
+        if (!response.ok) throw new Error('Kalshi API error');
+
+        const data = await response.json();
+        const rawMarkets = data.markets || [];
+
+        for (const m of rawMarkets) {
+          if (m.status !== 'open' || m.result) continue;
+
+          const { asset, category } = detectAsset(`${m.title} ${m.subtitle || ''}`);
+          if (!asset) continue;
+
+          const yesPrice = ((m.yes_bid || 0) + (m.yes_ask || 0)) / 2 / 100;
+          const noPrice = ((m.no_bid || 0) + (m.no_ask || 0)) / 2 / 100;
+
+          markets.push({
+            id: m.ticker,
+            platform: 'kalshi',
+            title: m.title,
+            description: m.subtitle,
+            asset,
+            category,
+            endDate: m.close_time ? new Date(m.close_time) : null,
+            outcomes: [
+              { id: `${m.ticker}-yes`, name: 'Yes', price: yesPrice },
+              { id: `${m.ticker}-no`, name: 'No', price: noPrice },
+            ],
+            volume: m.volume || 0,
+            url: `https://kalshi.com/markets/${m.event_ticker}`,
+          });
+        }
+      } catch (error) {
+        console.error('Kalshi fetch error:', error);
+      }
+      return markets;
+    }
+
+    // Fetch Polymarket markets (client-side)
+    async function fetchPolymarketMarkets() {
+      const markets = [];
+      try {
+        const response = await fetch('https://clob.polymarket.com/markets?limit=100');
+        if (!response.ok) throw new Error('Polymarket API error');
+
+        const rawMarkets = await response.json();
+
+        for (const m of rawMarkets) {
+          if (!m.active || m.closed) continue;
+
+          const { asset, category } = detectAsset(m.question || m.description || '');
+          if (!asset) continue;
+
+          const tokens = m.tokens || [];
+          if (tokens.length < 2) continue;
+
+          markets.push({
+            id: m.condition_id,
+            platform: 'polymarket',
+            title: m.question || m.description || 'Unknown',
+            asset,
+            category,
+            endDate: m.end_date_iso ? new Date(m.end_date_iso) : null,
+            outcomes: [
+              { id: tokens[0]?.token_id || `${m.condition_id}-yes`, name: 'Yes', price: parseFloat(tokens[0]?.price || '0.5') },
+              { id: tokens[1]?.token_id || `${m.condition_id}-no`, name: 'No', price: parseFloat(tokens[1]?.price || '0.5') },
+            ],
+            volume: parseFloat(m.volume || '0'),
+            url: `https://polymarket.com/event/${m.condition_id}`,
+          });
+        }
+      } catch (error) {
+        console.error('Polymarket fetch error:', error);
+      }
+      return markets;
+    }
+
+    // Detect arbitrage opportunities
+    function detectArbitrage(polymarket, kalshi) {
+      const opportunities = [];
+      const minSpread = 1.0;
+
+      for (const pm of polymarket) {
+        for (const km of kalshi) {
+          if (pm.asset && km.asset && pm.asset === km.asset) {
+            const yes1 = pm.outcomes.find(o => o.name === 'Yes');
+            const no1 = pm.outcomes.find(o => o.name === 'No');
+            const yes2 = km.outcomes.find(o => o.name === 'Yes');
+            const no2 = km.outcomes.find(o => o.name === 'No');
+
+            if (!yes1 || !no1 || !yes2 || !no2) continue;
+
+            // Arbitrage: Buy YES on one + NO on other < 1
+            const combo1 = yes1.price + no2.price;
+            if (combo1 < 0.99) {
+              const spread = (1 - combo1) * 100;
+              opportunities.push({
+                id: `${pm.id}-${km.id}-yes-no`,
+                description: `Buy YES on Polymarket @ ${(yes1.price * 100).toFixed(1)}% + NO on Kalshi @ ${(no2.price * 100).toFixed(1)}%`,
+                asset: pm.asset,
+                markets: [
+                  { platform: 'polymarket', market: pm, outcome: yes1, side: 'yes' },
+                  { platform: 'kalshi', market: km, outcome: no2, side: 'no' },
+                ],
+                spread,
+                potentialProfit: ((1 / combo1) - 1) * 100,
+                confidence: spread >= 3 ? 'high' : spread >= 2 ? 'medium' : 'low',
+              });
+            }
+
+            const combo2 = no1.price + yes2.price;
+            if (combo2 < 0.99) {
+              const spread = (1 - combo2) * 100;
+              opportunities.push({
+                id: `${pm.id}-${km.id}-no-yes`,
+                description: `Buy NO on Polymarket @ ${(no1.price * 100).toFixed(1)}% + YES on Kalshi @ ${(yes2.price * 100).toFixed(1)}%`,
+                asset: pm.asset,
+                markets: [
+                  { platform: 'polymarket', market: pm, outcome: no1, side: 'no' },
+                  { platform: 'kalshi', market: km, outcome: yes2, side: 'yes' },
+                ],
+                spread,
+                potentialProfit: ((1 / combo2) - 1) * 100,
+                confidence: spread >= 3 ? 'high' : spread >= 2 ? 'medium' : 'low',
+              });
+            }
+
+            // Price discrepancy
+            const yesDiff = Math.abs(yes1.price - yes2.price) * 100;
+            if (yesDiff >= minSpread) {
+              const buyPlatform = yes1.price < yes2.price ? 'polymarket' : 'kalshi';
+              opportunities.push({
+                id: `${pm.id}-${km.id}-disc`,
+                description: `YES priced at ${(Math.min(yes1.price, yes2.price) * 100).toFixed(1)}% on ${buyPlatform}, ${(Math.max(yes1.price, yes2.price) * 100).toFixed(1)}% elsewhere`,
+                asset: pm.asset,
+                markets: [
+                  { platform: 'polymarket', market: pm, outcome: yes1, side: 'yes' },
+                  { platform: 'kalshi', market: km, outcome: yes2, side: 'yes' },
+                ],
+                spread: yesDiff,
+                potentialProfit: yesDiff,
+                confidence: yesDiff >= 3 ? 'high' : yesDiff >= 2 ? 'medium' : 'low',
+              });
+            }
+          }
+        }
+      }
+
+      // Sort and dedupe
+      const seen = new Set();
+      return opportunities
+        .filter(op => op.spread >= minSpread)
+        .sort((a, b) => b.spread - a.spread)
+        .filter(op => {
+          const key = `${op.asset}-${op.spread.toFixed(1)}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+    }
+
     async function fetchData() {
       const btn = document.getElementById('refresh-btn');
       const container = document.getElementById('opportunities-container');
+      const statusNotice = document.getElementById('status-notice');
 
       btn.disabled = true;
       btn.textContent = 'Loading...';
+      statusNotice.textContent = 'Fetching live data from APIs...';
+      statusNotice.className = 'status-notice status-live';
 
       try {
-        const response = await fetch('/api/arbitrage');
-        const result = await response.json();
+        const [polymarket, kalshi] = await Promise.all([
+          fetchPolymarketMarkets(),
+          fetchKalshiMarkets(),
+        ]);
 
-        if (result.success) {
-          updateStats(result.data.summary, result.data.markets);
-          renderOpportunities(result.data.opportunities);
-          document.getElementById('last-updated').textContent =
-            `Last updated: ${new Date(result.timestamp).toLocaleTimeString()}`;
+        const opportunities = detectArbitrage(polymarket, kalshi);
 
-          // Update status notice
-          const demoNotice = document.getElementById('status-notice');
-          const liveNotice = document.getElementById('live-notice');
-          if (result.isDemo) {
-            demoNotice.style.display = 'block';
-            liveNotice.style.display = 'none';
-          } else {
-            demoNotice.style.display = 'none';
-            liveNotice.style.display = 'block';
-          }
-        } else {
-          container.innerHTML = `<div class="loading"><p>Error: ${result.error}</p></div>`;
-        }
+        // Update stats
+        document.getElementById('total-opportunities').textContent = opportunities.length;
+        document.getElementById('high-confidence').textContent = opportunities.filter(o => o.confidence === 'high').length;
+        document.getElementById('avg-spread').textContent = opportunities.length > 0
+          ? (opportunities.reduce((sum, o) => sum + o.spread, 0) / opportunities.length).toFixed(2) + '%'
+          : '0%';
+        document.getElementById('markets-count').textContent = polymarket.length + kalshi.length;
+        document.getElementById('last-updated').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+        // Update status
+        statusNotice.textContent = `Live Data: ${polymarket.length} Polymarket + ${kalshi.length} Kalshi markets`;
+        statusNotice.className = 'status-notice status-live';
+
+        renderOpportunities(opportunities);
+
       } catch (error) {
+        statusNotice.textContent = `Error: ${error.message}`;
+        statusNotice.className = 'status-notice status-error';
         container.innerHTML = `<div class="loading"><p>Error fetching data: ${error.message}</p></div>`;
       } finally {
         btn.disabled = false;
@@ -390,22 +370,11 @@
       }
     }
 
-    function updateStats(summary, markets) {
-      document.getElementById('total-opportunities').textContent = summary.totalOpportunities;
-      document.getElementById('high-confidence').textContent = summary.highConfidence;
-      document.getElementById('avg-spread').textContent = summary.avgSpread.toFixed(2) + '%';
-      document.getElementById('markets-count').textContent = markets.polymarket + markets.kalshi;
-    }
-
     function renderOpportunities(opportunities) {
       const container = document.getElementById('opportunities-container');
 
       if (opportunities.length === 0) {
-        container.innerHTML = `
-          <div class="loading">
-            <p>No arbitrage opportunities found at current spread threshold.</p>
-          </div>
-        `;
+        container.innerHTML = `<div class="loading"><p>No arbitrage opportunities found. Markets may be efficiently priced.</p></div>`;
         return;
       }
 
@@ -424,19 +393,13 @@
           <div class="opportunity-description">${opp.description}</div>
           <table class="markets-table">
             <thead>
-              <tr>
-                <th>Platform</th>
-                <th>Market</th>
-                <th>Side</th>
-                <th>Price</th>
-                <th>Link</th>
-              </tr>
+              <tr><th>Platform</th><th>Market</th><th>Side</th><th>Price</th><th>Link</th></tr>
             </thead>
             <tbody>
               ${opp.markets.map(m => `
                 <tr>
                   <td><span class="platform-badge platform-${m.platform}">${m.platform}</span></td>
-                  <td>${truncate(m.market.title, 40)}</td>
+                  <td>${m.market.title.length > 40 ? m.market.title.substring(0, 40) + '...' : m.market.title}</td>
                   <td class="side-${m.side}">${m.side.toUpperCase()}</td>
                   <td>${(m.outcome.price * 100).toFixed(1)}%</td>
                   <td><a href="${m.market.url}" target="_blank" class="market-link">View</a></td>
@@ -444,13 +407,8 @@
               `).join('')}
             </tbody>
           </table>
-          ${opp.expiresAt ? `<div style="color: #666; font-size: 0.85rem; margin-top: 10px;">Expires: ${new Date(opp.expiresAt).toLocaleString()}</div>` : ''}
         </div>
       `).join('') + '</div>';
-    }
-
-    function truncate(str, len) {
-      return str.length > len ? str.substring(0, len) + '...' : str;
     }
 
     // Initial load
