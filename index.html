@@ -29,9 +29,7 @@
     .stat-label { color: #888; font-size: 0.9rem; margin-top: 5px; }
     .assets-tracked { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 15px 20px; margin-bottom: 30px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: center; }
     .asset-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; }
-    .asset-badge.crypto { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-    .asset-badge.stocks { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-    .asset-badge.commodities { background: rgba(236, 72, 153, 0.2); color: #f472b6; }
+    .asset-badge.sports { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
     .opportunities { display: flex; flex-direction: column; gap: 20px; }
     .opportunity-card { background: rgba(255,255,255,0.05); border-radius: 16px; padding: 24px; border: 1px solid rgba(255,255,255,0.1); transition: transform 0.2s; }
     .opportunity-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
@@ -79,8 +77,8 @@
 <body>
   <div class="container">
     <header>
-      <h1>Polymarket-Kalshi Arbitrage</h1>
-      <p class="subtitle">Real-time prediction market opportunities</p>
+      <h1>Sports Betting Arbitrage</h1>
+      <p class="subtitle">Find price discrepancies between Polymarket & Kalshi</p>
     </header>
 
     <div class="status-notice status-live" id="status-notice">
@@ -89,15 +87,15 @@
 
     <div class="assets-tracked">
       <span style="color: #888; margin-right: 10px;">Tracking:</span>
-      <span class="asset-badge crypto">BTC</span>
-      <span class="asset-badge crypto">ETH</span>
-      <span class="asset-badge crypto">SOL</span>
-      <span class="asset-badge stocks">SPY</span>
-      <span class="asset-badge stocks">TSLA</span>
-      <span class="asset-badge stocks">AAPL</span>
-      <span class="asset-badge stocks">GOOGL</span>
-      <span class="asset-badge stocks">NVDA</span>
-      <span class="asset-badge commodities">GOLD</span>
+      <span class="asset-badge sports">NFL</span>
+      <span class="asset-badge sports">NBA</span>
+      <span class="asset-badge sports">MLB</span>
+      <span class="asset-badge sports">NHL</span>
+      <span class="asset-badge sports">UFC</span>
+      <span class="asset-badge sports">Soccer</span>
+      <span class="asset-badge sports">Tennis</span>
+      <span class="asset-badge sports">Golf</span>
+      <span class="asset-badge sports">F1</span>
     </div>
 
     <div class="stats">
@@ -138,17 +136,18 @@
   </div>
 
   <script>
-    // Asset configuration
+    // Sports asset configuration
     const TRACKED_ASSETS = [
-      { symbol: 'BTC', keywords: ['bitcoin', 'btc'], category: 'crypto' },
-      { symbol: 'ETH', keywords: ['ethereum', 'eth'], category: 'crypto' },
-      { symbol: 'SOL', keywords: ['solana', 'sol'], category: 'crypto' },
-      { symbol: 'SPY', keywords: ['spy', 's&p 500', 's&p500'], category: 'stocks' },
-      { symbol: 'TSLA', keywords: ['tesla', 'tsla'], category: 'stocks' },
-      { symbol: 'AAPL', keywords: ['apple', 'aapl'], category: 'stocks' },
-      { symbol: 'GOOGL', keywords: ['google', 'googl', 'alphabet'], category: 'stocks' },
-      { symbol: 'NVDA', keywords: ['nvidia', 'nvda'], category: 'stocks' },
-      { symbol: 'GOLD', keywords: ['gold', 'xau'], category: 'commodities' },
+      { symbol: 'NFL', keywords: ['nfl', 'football', 'super bowl', 'chiefs', 'eagles', 'patriots', 'cowboys', 'packers', '49ers', 'ravens', 'bills'], category: 'sports' },
+      { symbol: 'NBA', keywords: ['nba', 'basketball', 'lakers', 'celtics', 'warriors', 'bucks', 'heat', 'nuggets', 'suns', 'knicks'], category: 'sports' },
+      { symbol: 'MLB', keywords: ['mlb', 'baseball', 'yankees', 'dodgers', 'red sox', 'cubs', 'mets', 'astros', 'braves', 'phillies'], category: 'sports' },
+      { symbol: 'NHL', keywords: ['nhl', 'hockey', 'rangers', 'bruins', 'maple leafs', 'oilers', 'panthers', 'avalanche'], category: 'sports' },
+      { symbol: 'UFC', keywords: ['ufc', 'mma', 'fight', 'boxing', 'mcgregor', 'jones', 'adesanya'], category: 'sports' },
+      { symbol: 'SOCCER', keywords: ['soccer', 'premier league', 'champions league', 'world cup', 'manchester', 'liverpool', 'arsenal', 'chelsea', 'real madrid', 'barcelona', 'messi', 'ronaldo'], category: 'sports' },
+      { symbol: 'TENNIS', keywords: ['tennis', 'wimbledon', 'us open', 'french open', 'australian open', 'djokovic', 'nadal', 'federer'], category: 'sports' },
+      { symbol: 'GOLF', keywords: ['golf', 'pga', 'masters', 'us open golf', 'british open'], category: 'sports' },
+      { symbol: 'F1', keywords: ['formula 1', 'f1', 'verstappen', 'hamilton', 'ferrari', 'red bull racing'], category: 'sports' },
+      { symbol: 'COLLEGE', keywords: ['ncaa', 'college football', 'march madness', 'college basketball'], category: 'sports' },
     ];
 
     function detectAsset(text) {
@@ -241,95 +240,69 @@
       return markets;
     }
 
-    // Detect arbitrage opportunities
+    // Detect price discrepancies (arbitrage opportunities)
+    // e.g., YES is 7c on Kalshi but 9c on Polymarket = buy on Kalshi
     function detectArbitrage(polymarket, kalshi) {
       const opportunities = [];
-      const minSpread = 0.5; // Lowered threshold
+      const minDiff = 1; // Minimum 1 cent difference
 
-      console.log('Detecting arbitrage between', polymarket.length, 'PM and', kalshi.length, 'Kalshi markets');
+      console.log('Finding price discrepancies between', polymarket.length, 'Polymarket and', kalshi.length, 'Kalshi sports markets');
 
       for (const pm of polymarket) {
         for (const km of kalshi) {
-          // Match by asset OR similar titles
-          const assetsMatch = pm.asset && km.asset && pm.asset === km.asset && pm.asset !== 'OTHER';
-          const titlesMatch = pm.title.toLowerCase().includes(km.title.toLowerCase().split(' ')[0]) ||
-                              km.title.toLowerCase().includes(pm.title.toLowerCase().split(' ')[0]);
+          // Try to match similar markets by title similarity
+          const pmTitle = pm.title.toLowerCase();
+          const kmTitle = km.title.toLowerCase();
 
-          if (assetsMatch || titlesMatch) {
-            const yes1 = pm.outcomes.find(o => o.name === 'Yes');
-            const no1 = pm.outcomes.find(o => o.name === 'No');
-            const yes2 = km.outcomes.find(o => o.name === 'Yes');
-            const no2 = km.outcomes.find(o => o.name === 'No');
+          // Check if titles share significant words (excluding common words)
+          const pmWords = pmTitle.split(/\s+/).filter(w => w.length > 3);
+          const kmWords = kmTitle.split(/\s+/).filter(w => w.length > 3);
+          const commonWords = pmWords.filter(w => kmWords.some(kw => kw.includes(w) || w.includes(kw)));
 
-            if (!yes1 || !no1 || !yes2 || !no2) continue;
+          // Need at least 2 common words to consider a match
+          if (commonWords.length < 2) continue;
 
-            // Arbitrage: Buy YES on one + NO on other < 1
-            const combo1 = yes1.price + no2.price;
-            if (combo1 < 0.99) {
-              const spread = (1 - combo1) * 100;
-              opportunities.push({
-                id: `${pm.id}-${km.id}-yes-no`,
-                description: `Buy YES on Polymarket @ ${(yes1.price * 100).toFixed(1)}% + NO on Kalshi @ ${(no2.price * 100).toFixed(1)}%`,
-                asset: pm.asset,
-                markets: [
-                  { platform: 'polymarket', market: pm, outcome: yes1, side: 'yes' },
-                  { platform: 'kalshi', market: km, outcome: no2, side: 'no' },
-                ],
-                spread,
-                potentialProfit: ((1 / combo1) - 1) * 100,
-                confidence: spread >= 3 ? 'high' : spread >= 2 ? 'medium' : 'low',
-              });
-            }
+          const pmYes = pm.outcomes.find(o => o.name === 'Yes');
+          const kmYes = km.outcomes.find(o => o.name === 'Yes');
 
-            const combo2 = no1.price + yes2.price;
-            if (combo2 < 0.99) {
-              const spread = (1 - combo2) * 100;
-              opportunities.push({
-                id: `${pm.id}-${km.id}-no-yes`,
-                description: `Buy NO on Polymarket @ ${(no1.price * 100).toFixed(1)}% + YES on Kalshi @ ${(yes2.price * 100).toFixed(1)}%`,
-                asset: pm.asset,
-                markets: [
-                  { platform: 'polymarket', market: pm, outcome: no1, side: 'no' },
-                  { platform: 'kalshi', market: km, outcome: yes2, side: 'yes' },
-                ],
-                spread,
-                potentialProfit: ((1 / combo2) - 1) * 100,
-                confidence: spread >= 3 ? 'high' : spread >= 2 ? 'medium' : 'low',
-              });
-            }
+          if (!pmYes || !kmYes) continue;
 
-            // Price discrepancy
-            const yesDiff = Math.abs(yes1.price - yes2.price) * 100;
-            if (yesDiff >= minSpread) {
-              const buyPlatform = yes1.price < yes2.price ? 'polymarket' : 'kalshi';
-              opportunities.push({
-                id: `${pm.id}-${km.id}-disc`,
-                description: `YES priced at ${(Math.min(yes1.price, yes2.price) * 100).toFixed(1)}% on ${buyPlatform}, ${(Math.max(yes1.price, yes2.price) * 100).toFixed(1)}% elsewhere`,
-                asset: pm.asset,
-                markets: [
-                  { platform: 'polymarket', market: pm, outcome: yes1, side: 'yes' },
-                  { platform: 'kalshi', market: km, outcome: yes2, side: 'yes' },
-                ],
-                spread: yesDiff,
-                potentialProfit: yesDiff,
-                confidence: yesDiff >= 3 ? 'high' : yesDiff >= 2 ? 'medium' : 'low',
-              });
-            }
+          const pmPrice = Math.round(pmYes.price * 100); // in cents
+          const kmPrice = Math.round(kmYes.price * 100); // in cents
+          const diff = Math.abs(pmPrice - kmPrice);
+
+          if (diff >= minDiff) {
+            const cheaperPlatform = pmPrice < kmPrice ? 'polymarket' : 'kalshi';
+            const cheaperPrice = Math.min(pmPrice, kmPrice);
+            const higherPrice = Math.max(pmPrice, kmPrice);
+            const cheaperMarket = pmPrice < kmPrice ? pm : km;
+            const higherMarket = pmPrice < kmPrice ? km : pm;
+
+            opportunities.push({
+              id: `${pm.id}-${km.id}`,
+              description: `Buy YES at ${cheaperPrice}¢ on ${cheaperPlatform}, worth ${higherPrice}¢ elsewhere (+${diff}¢ profit)`,
+              asset: pm.asset !== 'OTHER' ? pm.asset : km.asset,
+              cheaperPlatform,
+              cheaperPrice,
+              higherPrice,
+              diff,
+              markets: [
+                { platform: cheaperPlatform, market: cheaperMarket, outcome: pmPrice < kmPrice ? pmYes : kmYes, side: 'yes', price: cheaperPrice },
+                { platform: cheaperPlatform === 'polymarket' ? 'kalshi' : 'polymarket', market: higherMarket, outcome: pmPrice < kmPrice ? kmYes : pmYes, side: 'yes', price: higherPrice },
+              ],
+              spread: diff,
+              potentialProfit: diff,
+              confidence: diff >= 5 ? 'high' : diff >= 3 ? 'medium' : 'low',
+              matchedWords: commonWords.join(', '),
+            });
           }
         }
       }
 
-      // Sort and dedupe
-      const seen = new Set();
+      // Sort by price difference (biggest opportunities first)
       return opportunities
-        .filter(op => op.spread >= minSpread)
-        .sort((a, b) => b.spread - a.spread)
-        .filter(op => {
-          const key = `${op.asset}-${op.spread.toFixed(1)}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+        .sort((a, b) => b.diff - a.diff)
+        .slice(0, 20); // Top 20 opportunities
     }
 
     async function fetchData() {
@@ -412,31 +385,31 @@
         <div class="opportunity-card">
           <div class="opportunity-header">
             <div class="opportunity-asset">
-              <span class="asset-name">${opp.asset}</span>
-              <span class="confidence-badge confidence-${opp.confidence}">${opp.confidence}</span>
+              <span class="asset-name">${opp.asset || 'SPORTS'}</span>
+              <span class="confidence-badge confidence-${opp.confidence}">+${opp.diff}¢</span>
             </div>
             <div class="spread-info">
-              <div class="spread-value">${opp.spread.toFixed(2)}%</div>
-              <div class="profit-label">Potential Profit: ${opp.potentialProfit.toFixed(2)}%</div>
+              <div class="spread-value" style="color: #10b981;">${opp.cheaperPrice}¢ → ${opp.higherPrice}¢</div>
+              <div class="profit-label">Buy on ${opp.cheaperPlatform}</div>
             </div>
           </div>
           <div class="opportunity-description">${opp.description}</div>
           <table class="markets-table">
             <thead>
-              <tr><th>Platform</th><th>Market</th><th>Side</th><th>Price</th><th>Link</th></tr>
+              <tr><th>Platform</th><th>Market</th><th>YES Price</th><th>Link</th></tr>
             </thead>
             <tbody>
               ${opp.markets.map(m => `
                 <tr>
                   <td><span class="platform-badge platform-${m.platform}">${m.platform}</span></td>
-                  <td>${m.market.title.length > 40 ? m.market.title.substring(0, 40) + '...' : m.market.title}</td>
-                  <td class="side-${m.side}">${m.side.toUpperCase()}</td>
-                  <td>${(m.outcome.price * 100).toFixed(1)}%</td>
+                  <td>${m.market.title.length > 50 ? m.market.title.substring(0, 50) + '...' : m.market.title}</td>
+                  <td style="font-weight: bold; color: ${m.price === opp.cheaperPrice ? '#10b981' : '#888'};">${m.price}¢</td>
                   <td><a href="${m.market.url}" target="_blank" class="market-link">View</a></td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
+          ${opp.matchedWords ? `<div style="color: #666; font-size: 0.8rem; margin-top: 8px;">Matched: ${opp.matchedWords}</div>` : ''}
         </div>
       `).join('') + '</div>';
     }
