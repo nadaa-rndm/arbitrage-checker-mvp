@@ -163,89 +163,72 @@
       return { asset: null, category: 'other' };
     }
 
-    // CORS proxy for APIs that don't allow browser requests
-    const CORS_PROXY = 'https://corsproxy.io/?';
+    // Fetch all markets from our API proxy
+    async function fetchAllMarkets() {
+      const response = await fetch('/api/markets');
+      if (!response.ok) throw new Error('API error');
+      const data = await response.json();
+      if (!data.success) throw new Error(data.error || 'Failed to fetch');
+      return data;
+    }
 
-    // Fetch Kalshi markets (client-side via proxy)
-    async function fetchKalshiMarkets() {
+    // Parse Kalshi markets
+    function parseKalshiMarkets(rawMarkets) {
       const markets = [];
-      try {
-        const url = CORS_PROXY + encodeURIComponent('https://api.elections.kalshi.com/trade-api/v2/markets?status=open&limit=200');
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Kalshi API error');
+      for (const m of rawMarkets) {
+        if (m.status !== 'open' || m.result) continue;
 
-        const data = await response.json();
-        const rawMarkets = data.markets || [];
+        const { asset, category } = detectAsset(`${m.title} ${m.subtitle || ''}`);
+        if (!asset) continue;
 
-        for (const m of rawMarkets) {
-          if (m.status !== 'open' || m.result) continue;
+        const yesPrice = ((m.yes_bid || 0) + (m.yes_ask || 0)) / 2 / 100;
+        const noPrice = ((m.no_bid || 0) + (m.no_ask || 0)) / 2 / 100;
 
-          const { asset, category } = detectAsset(`${m.title} ${m.subtitle || ''}`);
-          if (!asset) continue;
-
-          const yesPrice = ((m.yes_bid || 0) + (m.yes_ask || 0)) / 2 / 100;
-          const noPrice = ((m.no_bid || 0) + (m.no_ask || 0)) / 2 / 100;
-
-          markets.push({
-            id: m.ticker,
-            platform: 'kalshi',
-            title: m.title,
-            description: m.subtitle,
-            asset,
-            category,
-            endDate: m.close_time ? new Date(m.close_time) : null,
-            outcomes: [
-              { id: `${m.ticker}-yes`, name: 'Yes', price: yesPrice },
-              { id: `${m.ticker}-no`, name: 'No', price: noPrice },
-            ],
-            volume: m.volume || 0,
-            url: `https://kalshi.com/markets/${m.event_ticker}`,
-          });
-        }
-      } catch (error) {
-        console.error('Kalshi fetch error:', error);
+        markets.push({
+          id: m.ticker,
+          platform: 'kalshi',
+          title: m.title,
+          description: m.subtitle,
+          asset,
+          category,
+          endDate: m.close_time ? new Date(m.close_time) : null,
+          outcomes: [
+            { id: `${m.ticker}-yes`, name: 'Yes', price: yesPrice },
+            { id: `${m.ticker}-no`, name: 'No', price: noPrice },
+          ],
+          volume: m.volume || 0,
+          url: `https://kalshi.com/markets/${m.event_ticker}`,
+        });
       }
       return markets;
     }
 
-    // Fetch Polymarket markets (client-side via proxy)
-    async function fetchPolymarketMarkets() {
+    // Parse Polymarket markets
+    function parsePolymarketMarkets(rawMarkets) {
       const markets = [];
-      try {
-        const url = CORS_PROXY + encodeURIComponent('https://clob.polymarket.com/markets?limit=100');
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Polymarket API error');
+      for (const m of rawMarkets) {
+        if (!m.active || m.closed) continue;
 
-        const data = await response.json();
-        // Handle both array and object responses
-        const rawMarkets = Array.isArray(data) ? data : (data.markets || data.data || []);
+        const { asset, category } = detectAsset(m.question || m.description || '');
+        if (!asset) continue;
 
-        for (const m of rawMarkets) {
-          if (!m.active || m.closed) continue;
+        const tokens = m.tokens || [];
+        if (tokens.length < 2) continue;
 
-          const { asset, category } = detectAsset(m.question || m.description || '');
-          if (!asset) continue;
-
-          const tokens = m.tokens || [];
-          if (tokens.length < 2) continue;
-
-          markets.push({
-            id: m.condition_id,
-            platform: 'polymarket',
-            title: m.question || m.description || 'Unknown',
-            asset,
-            category,
-            endDate: m.end_date_iso ? new Date(m.end_date_iso) : null,
-            outcomes: [
-              { id: tokens[0]?.token_id || `${m.condition_id}-yes`, name: 'Yes', price: parseFloat(tokens[0]?.price || '0.5') },
-              { id: tokens[1]?.token_id || `${m.condition_id}-no`, name: 'No', price: parseFloat(tokens[1]?.price || '0.5') },
-            ],
-            volume: parseFloat(m.volume || '0'),
-            url: `https://polymarket.com/event/${m.condition_id}`,
-          });
-        }
-      } catch (error) {
-        console.error('Polymarket fetch error:', error);
+        markets.push({
+          id: m.condition_id,
+          platform: 'polymarket',
+          title: m.question || m.description || 'Unknown',
+          asset,
+          category,
+          endDate: m.end_date_iso ? new Date(m.end_date_iso) : null,
+          outcomes: [
+            { id: tokens[0]?.token_id || `${m.condition_id}-yes`, name: 'Yes', price: parseFloat(tokens[0]?.price || '0.5') },
+            { id: tokens[1]?.token_id || `${m.condition_id}-no`, name: 'No', price: parseFloat(tokens[1]?.price || '0.5') },
+          ],
+          volume: parseFloat(m.volume || '0'),
+          url: `https://polymarket.com/event/${m.condition_id}`,
+        });
       }
       return markets;
     }
@@ -345,10 +328,9 @@
       statusNotice.className = 'status-notice status-live';
 
       try {
-        const [polymarket, kalshi] = await Promise.all([
-          fetchPolymarketMarkets(),
-          fetchKalshiMarkets(),
-        ]);
+        const data = await fetchAllMarkets();
+        const polymarket = parsePolymarketMarkets(data.polymarket || []);
+        const kalshi = parseKalshiMarkets(data.kalshi || []);
 
         const opportunities = detectArbitrage(polymarket, kalshi);
 
