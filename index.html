@@ -163,11 +163,15 @@
       return { asset: null, category: 'other' };
     }
 
-    // Fetch Kalshi markets (client-side)
+    // CORS proxy for APIs that don't allow browser requests
+    const CORS_PROXY = 'https://corsproxy.io/?';
+
+    // Fetch Kalshi markets (client-side via proxy)
     async function fetchKalshiMarkets() {
       const markets = [];
       try {
-        const response = await fetch('https://api.elections.kalshi.com/trade-api/v2/markets?status=open&limit=200');
+        const url = CORS_PROXY + encodeURIComponent('https://api.elections.kalshi.com/trade-api/v2/markets?status=open&limit=200');
+        const response = await fetch(url);
         if (!response.ok) throw new Error('Kalshi API error');
 
         const data = await response.json();
@@ -204,14 +208,17 @@
       return markets;
     }
 
-    // Fetch Polymarket markets (client-side)
+    // Fetch Polymarket markets (client-side via proxy)
     async function fetchPolymarketMarkets() {
       const markets = [];
       try {
-        const response = await fetch('https://clob.polymarket.com/markets?limit=100');
+        const url = CORS_PROXY + encodeURIComponent('https://clob.polymarket.com/markets?limit=100');
+        const response = await fetch(url);
         if (!response.ok) throw new Error('Polymarket API error');
 
-        const rawMarkets = await response.json();
+        const data = await response.json();
+        // Handle both array and object responses
+        const rawMarkets = Array.isArray(data) ? data : (data.markets || data.data || []);
 
         for (const m of rawMarkets) {
           if (!m.active || m.closed) continue;
