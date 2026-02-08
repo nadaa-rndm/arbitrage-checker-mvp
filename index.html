@@ -184,6 +184,11 @@
         const yesPrice = (m.yes_bid || m.last_price || 50) / 100;
         const noPrice = (m.no_bid || (100 - (m.last_price || 50))) / 100;
 
+        // Kalshi URL format: https://kalshi.com/markets/[event_ticker]
+        const kalshiUrl = m.event_ticker
+          ? `https://kalshi.com/markets/${m.event_ticker}`
+          : `https://kalshi.com/markets`;
+
         markets.push({
           id: m.ticker || m.id,
           platform: 'kalshi',
@@ -197,7 +202,7 @@
             { id: `${m.ticker}-no`, name: 'No', price: noPrice },
           ],
           volume: m.volume || 0,
-          url: `https://kalshi.com/markets/${m.event_ticker || m.ticker}`,
+          url: kalshiUrl,
         });
       }
       console.log('Kalshi parsed markets:', markets.length);
@@ -221,6 +226,12 @@
           noPrice = parseFloat(tokens[1]?.price || '0.5');
         }
 
+        // Polymarket URL format: https://polymarket.com/event/[slug] or condition_id
+        const slug = m.market_slug || m.slug || m.condition_id;
+        const polyUrl = slug
+          ? `https://polymarket.com/event/${slug}`
+          : 'https://polymarket.com';
+
         markets.push({
           id: m.condition_id || m.id,
           platform: 'polymarket',
@@ -233,7 +244,7 @@
             { id: `${m.condition_id}-no`, name: 'No', price: noPrice },
           ],
           volume: parseFloat(m.volume || '0'),
-          url: `https://polymarket.com/event/${m.condition_id}`,
+          url: polyUrl,
         });
       }
       console.log('Polymarket parsed markets:', markets.length);
@@ -248,19 +259,27 @@
 
       console.log('Finding price discrepancies between', polymarket.length, 'Polymarket and', kalshi.length, 'Kalshi sports markets');
 
+      // Common words to ignore when matching
+      const stopWords = ['will', 'the', 'win', 'beat', 'against', 'vs', 'over', 'under', 'game', 'match', 'this', 'that', 'what', 'when', 'where', 'which', 'while', 'with', 'would', 'have', 'been', 'from', 'they', 'more', 'than', 'year', '2024', '2025', '2026'];
+
       for (const pm of polymarket) {
         for (const km of kalshi) {
-          // Try to match similar markets by title similarity
           const pmTitle = pm.title.toLowerCase();
           const kmTitle = km.title.toLowerCase();
 
-          // Check if titles share significant words (excluding common words)
-          const pmWords = pmTitle.split(/\s+/).filter(w => w.length > 3);
-          const kmWords = kmTitle.split(/\s+/).filter(w => w.length > 3);
-          const commonWords = pmWords.filter(w => kmWords.some(kw => kw.includes(w) || w.includes(kw)));
+          // Extract meaningful words (exclude stop words and short words)
+          const pmWords = pmTitle.split(/[\s\-\?\!\.]+/)
+            .filter(w => w.length > 2 && !stopWords.includes(w));
+          const kmWords = kmTitle.split(/[\s\-\?\!\.]+/)
+            .filter(w => w.length > 2 && !stopWords.includes(w));
 
-          // Need at least 2 common words to consider a match
-          if (commonWords.length < 2) continue;
+          // Find exact word matches
+          const commonWords = pmWords.filter(w => kmWords.includes(w));
+
+          // Need at least 2 common meaningful words OR same asset (if not OTHER)
+          const sameAsset = pm.asset !== 'OTHER' && km.asset !== 'OTHER' && pm.asset === km.asset;
+          if (commonWords.length < 2 && !sameAsset) continue;
+          if (commonWords.length < 1) continue; // Need at least 1 match
 
           const pmYes = pm.outcomes.find(o => o.name === 'Yes');
           const kmYes = km.outcomes.find(o => o.name === 'Yes');
@@ -272,24 +291,22 @@
           const diff = Math.abs(pmPrice - kmPrice);
 
           if (diff >= minDiff) {
-            const cheaperPlatform = pmPrice < kmPrice ? 'polymarket' : 'kalshi';
+            const cheaperPlatform = pmPrice < kmPrice ? 'Polymarket' : 'Kalshi';
+            const expensivePlatform = pmPrice < kmPrice ? 'Kalshi' : 'Polymarket';
             const cheaperPrice = Math.min(pmPrice, kmPrice);
             const higherPrice = Math.max(pmPrice, kmPrice);
-            const cheaperMarket = pmPrice < kmPrice ? pm : km;
-            const higherMarket = pmPrice < kmPrice ? km : pm;
 
             opportunities.push({
               id: `${pm.id}-${km.id}`,
-              description: `Buy YES at ${cheaperPrice}¢ on ${cheaperPlatform}, worth ${higherPrice}¢ elsewhere (+${diff}¢ profit)`,
+              description: `Buy YES at ${cheaperPrice}¢ on ${cheaperPlatform}, worth ${higherPrice}¢ on ${expensivePlatform} (+${diff}¢ profit)`,
               asset: pm.asset !== 'OTHER' ? pm.asset : km.asset,
               cheaperPlatform,
+              expensivePlatform,
               cheaperPrice,
               higherPrice,
               diff,
-              markets: [
-                { platform: cheaperPlatform, market: cheaperMarket, outcome: pmPrice < kmPrice ? pmYes : kmYes, side: 'yes', price: cheaperPrice },
-                { platform: cheaperPlatform === 'polymarket' ? 'kalshi' : 'polymarket', market: higherMarket, outcome: pmPrice < kmPrice ? kmYes : pmYes, side: 'yes', price: higherPrice },
-              ],
+              polymarket: { market: pm, price: pmPrice },
+              kalshi: { market: km, price: kmPrice },
               spread: diff,
               potentialProfit: diff,
               confidence: diff >= 5 ? 'high' : diff >= 3 ? 'medium' : 'low',
@@ -399,17 +416,21 @@
               <tr><th>Platform</th><th>Market</th><th>YES Price</th><th>Link</th></tr>
             </thead>
             <tbody>
-              ${opp.markets.map(m => `
-                <tr>
-                  <td><span class="platform-badge platform-${m.platform}">${m.platform}</span></td>
-                  <td>${m.market.title.length > 50 ? m.market.title.substring(0, 50) + '...' : m.market.title}</td>
-                  <td style="font-weight: bold; color: ${m.price === opp.cheaperPrice ? '#10b981' : '#888'};">${m.price}¢</td>
-                  <td><a href="${m.market.url}" target="_blank" class="market-link">View</a></td>
-                </tr>
-              `).join('')}
+              <tr>
+                <td><span class="platform-badge platform-polymarket">Polymarket</span></td>
+                <td>${opp.polymarket.market.title.length > 50 ? opp.polymarket.market.title.substring(0, 50) + '...' : opp.polymarket.market.title}</td>
+                <td style="font-weight: bold; color: ${opp.polymarket.price === opp.cheaperPrice ? '#10b981' : '#888'};">${opp.polymarket.price}¢</td>
+                <td><a href="${opp.polymarket.market.url}" target="_blank" class="market-link">View</a></td>
+              </tr>
+              <tr>
+                <td><span class="platform-badge platform-kalshi">Kalshi</span></td>
+                <td>${opp.kalshi.market.title.length > 50 ? opp.kalshi.market.title.substring(0, 50) + '...' : opp.kalshi.market.title}</td>
+                <td style="font-weight: bold; color: ${opp.kalshi.price === opp.cheaperPrice ? '#10b981' : '#888'};">${opp.kalshi.price}¢</td>
+                <td><a href="${opp.kalshi.market.url}" target="_blank" class="market-link">View</a></td>
+              </tr>
             </tbody>
           </table>
-          ${opp.matchedWords ? `<div style="color: #666; font-size: 0.8rem; margin-top: 8px;">Matched: ${opp.matchedWords}</div>` : ''}
+          ${opp.matchedWords ? `<div style="color: #666; font-size: 0.8rem; margin-top: 8px;">Matched words: ${opp.matchedWords}</div>` : ''}
         </div>
       `).join('') + '</div>';
     }
