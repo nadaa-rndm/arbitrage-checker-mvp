@@ -175,21 +175,22 @@
     // Parse Kalshi markets
     function parseKalshiMarkets(rawMarkets) {
       const markets = [];
+      console.log('Kalshi raw markets:', rawMarkets?.length || 0);
+      if (!Array.isArray(rawMarkets)) return markets;
+
       for (const m of rawMarkets) {
-        if (m.status !== 'open' || m.result) continue;
+        const { asset, category } = detectAsset(`${m.title || ''} ${m.subtitle || ''}`);
 
-        const { asset, category } = detectAsset(`${m.title} ${m.subtitle || ''}`);
-        if (!asset) continue;
-
-        const yesPrice = ((m.yes_bid || 0) + (m.yes_ask || 0)) / 2 / 100;
-        const noPrice = ((m.no_bid || 0) + (m.no_ask || 0)) / 2 / 100;
+        // Get prices - Kalshi uses cents (0-100)
+        const yesPrice = (m.yes_bid || m.last_price || 50) / 100;
+        const noPrice = (m.no_bid || (100 - (m.last_price || 50))) / 100;
 
         markets.push({
-          id: m.ticker,
+          id: m.ticker || m.id,
           platform: 'kalshi',
-          title: m.title,
+          title: m.title || 'Unknown',
           description: m.subtitle,
-          asset,
+          asset: asset || 'OTHER',
           category,
           endDate: m.close_time ? new Date(m.close_time) : null,
           outcomes: [
@@ -197,50 +198,64 @@
             { id: `${m.ticker}-no`, name: 'No', price: noPrice },
           ],
           volume: m.volume || 0,
-          url: `https://kalshi.com/markets/${m.event_ticker}`,
+          url: `https://kalshi.com/markets/${m.event_ticker || m.ticker}`,
         });
       }
+      console.log('Kalshi parsed markets:', markets.length);
       return markets;
     }
 
     // Parse Polymarket markets
     function parsePolymarketMarkets(rawMarkets) {
       const markets = [];
-      for (const m of rawMarkets) {
-        if (!m.active || m.closed) continue;
+      console.log('Polymarket raw markets:', rawMarkets?.length || 0);
+      if (!Array.isArray(rawMarkets)) return markets;
 
+      for (const m of rawMarkets) {
         const { asset, category } = detectAsset(m.question || m.description || '');
-        if (!asset) continue;
 
         const tokens = m.tokens || [];
-        if (tokens.length < 2) continue;
+        let yesPrice = 0.5, noPrice = 0.5;
+
+        if (tokens.length >= 2) {
+          yesPrice = parseFloat(tokens[0]?.price || '0.5');
+          noPrice = parseFloat(tokens[1]?.price || '0.5');
+        }
 
         markets.push({
-          id: m.condition_id,
+          id: m.condition_id || m.id,
           platform: 'polymarket',
           title: m.question || m.description || 'Unknown',
-          asset,
+          asset: asset || 'OTHER',
           category,
           endDate: m.end_date_iso ? new Date(m.end_date_iso) : null,
           outcomes: [
-            { id: tokens[0]?.token_id || `${m.condition_id}-yes`, name: 'Yes', price: parseFloat(tokens[0]?.price || '0.5') },
-            { id: tokens[1]?.token_id || `${m.condition_id}-no`, name: 'No', price: parseFloat(tokens[1]?.price || '0.5') },
+            { id: `${m.condition_id}-yes`, name: 'Yes', price: yesPrice },
+            { id: `${m.condition_id}-no`, name: 'No', price: noPrice },
           ],
           volume: parseFloat(m.volume || '0'),
           url: `https://polymarket.com/event/${m.condition_id}`,
         });
       }
+      console.log('Polymarket parsed markets:', markets.length);
       return markets;
     }
 
     // Detect arbitrage opportunities
     function detectArbitrage(polymarket, kalshi) {
       const opportunities = [];
-      const minSpread = 1.0;
+      const minSpread = 0.5; // Lowered threshold
+
+      console.log('Detecting arbitrage between', polymarket.length, 'PM and', kalshi.length, 'Kalshi markets');
 
       for (const pm of polymarket) {
         for (const km of kalshi) {
-          if (pm.asset && km.asset && pm.asset === km.asset) {
+          // Match by asset OR similar titles
+          const assetsMatch = pm.asset && km.asset && pm.asset === km.asset && pm.asset !== 'OTHER';
+          const titlesMatch = pm.title.toLowerCase().includes(km.title.toLowerCase().split(' ')[0]) ||
+                              km.title.toLowerCase().includes(pm.title.toLowerCase().split(' ')[0]);
+
+          if (assetsMatch || titlesMatch) {
             const yes1 = pm.outcomes.find(o => o.name === 'Yes');
             const no1 = pm.outcomes.find(o => o.name === 'No');
             const yes2 = km.outcomes.find(o => o.name === 'Yes');
@@ -347,9 +362,10 @@
         statusNotice.textContent = `Live Data: ${polymarket.length} Polymarket + ${kalshi.length} Kalshi markets`;
         statusNotice.className = 'status-notice status-live';
 
-        renderOpportunities(opportunities);
+        renderOpportunities(opportunities, [...polymarket, ...kalshi]);
 
       } catch (error) {
+        console.error('Fetch error:', error);
         statusNotice.textContent = `Error: ${error.message}`;
         statusNotice.className = 'status-notice status-error';
         container.innerHTML = `<div class="loading"><p>Error fetching data: ${error.message}</p></div>`;
@@ -359,11 +375,36 @@
       }
     }
 
-    function renderOpportunities(opportunities) {
+    function renderOpportunities(opportunities, allMarkets = []) {
       const container = document.getElementById('opportunities-container');
 
       if (opportunities.length === 0) {
-        container.innerHTML = `<div class="loading"><p>No arbitrage opportunities found. Markets may be efficiently priced.</p></div>`;
+        // Show available markets instead
+        const trackedMarkets = allMarkets.filter(m => m.asset !== 'OTHER').slice(0, 10);
+        if (trackedMarkets.length > 0) {
+          container.innerHTML = `
+            <div class="loading"><p>No arbitrage opportunities found. Showing ${trackedMarkets.length} tracked markets:</p></div>
+            <div class="opportunities">
+              ${trackedMarkets.map(m => `
+                <div class="opportunity-card" style="padding: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <span class="asset-name" style="font-size: 1.2rem;">${m.asset}</span>
+                      <span class="platform-badge platform-${m.platform}" style="margin-left: 10px;">${m.platform}</span>
+                    </div>
+                    <div style="text-align: right;">
+                      <span style="color: #10b981; font-weight: bold;">YES: ${(m.outcomes[0]?.price * 100).toFixed(1)}%</span>
+                      <span style="color: #888; margin: 0 8px;">|</span>
+                      <span style="color: #ef4444; font-weight: bold;">NO: ${(m.outcomes[1]?.price * 100).toFixed(1)}%</span>
+                    </div>
+                  </div>
+                  <p style="color: #aaa; margin-top: 8px; font-size: 0.9rem;">${m.title.substring(0, 80)}${m.title.length > 80 ? '...' : ''}</p>
+                </div>
+              `).join('')}
+            </div>`;
+        } else {
+          container.innerHTML = `<div class="loading"><p>No tracked markets found. Total markets: ${allMarkets.length}</p></div>`;
+        }
         return;
       }
 
