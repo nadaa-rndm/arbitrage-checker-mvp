@@ -39,245 +39,228 @@ interface ArbitrageOpportunity {
   expiresAt?: Date;
 }
 
-// Demo data
+// Asset keywords for detection
+const TRACKED_ASSETS = [
+  { symbol: 'BTC', keywords: ['bitcoin', 'btc'], category: 'crypto' },
+  { symbol: 'ETH', keywords: ['ethereum', 'eth'], category: 'crypto' },
+  { symbol: 'SOL', keywords: ['solana', 'sol'], category: 'crypto' },
+  { symbol: 'SPY', keywords: ['spy', 's&p 500', 's&p500'], category: 'stocks' },
+  { symbol: 'TSLA', keywords: ['tesla', 'tsla'], category: 'stocks' },
+  { symbol: 'AAPL', keywords: ['apple', 'aapl'], category: 'stocks' },
+  { symbol: 'GOOGL', keywords: ['google', 'googl', 'alphabet'], category: 'stocks' },
+  { symbol: 'NVDA', keywords: ['nvidia', 'nvda'], category: 'stocks' },
+  { symbol: 'GOLD', keywords: ['gold', 'xau'], category: 'commodities' },
+];
+
+function detectAsset(text: string): { asset?: string; category: string } {
+  const lowerText = text.toLowerCase();
+  for (const config of TRACKED_ASSETS) {
+    for (const keyword of config.keywords) {
+      if (lowerText.includes(keyword)) {
+        return { asset: config.symbol, category: config.category };
+      }
+    }
+  }
+  return { category: 'other' };
+}
+
+// Fetch Kalshi markets
+async function fetchKalshiMarkets(): Promise<Market[]> {
+  const markets: Market[] = [];
+
+  try {
+    const response = await fetch(
+      'https://api.elections.kalshi.com/trade-api/v2/markets?status=open&limit=200',
+      {
+        headers: {
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Kalshi API error:', response.status);
+      return markets;
+    }
+
+    const data = await response.json();
+    const rawMarkets = data.markets || [];
+
+    for (const m of rawMarkets) {
+      if (m.status !== 'open' || m.result) continue;
+
+      const { asset, category } = detectAsset(`${m.title} ${m.subtitle || ''}`);
+      if (!asset) continue; // Only include tracked assets
+
+      // Kalshi prices are in cents (0-100)
+      const yesPrice = ((m.yes_bid || 0) + (m.yes_ask || 0)) / 2 / 100;
+      const noPrice = ((m.no_bid || 0) + (m.no_ask || 0)) / 2 / 100;
+
+      markets.push({
+        id: m.ticker,
+        platform: 'kalshi',
+        title: m.title,
+        description: m.subtitle,
+        asset,
+        category,
+        endDate: m.close_time ? new Date(m.close_time) : undefined,
+        outcomes: [
+          { id: `${m.ticker}-yes`, name: 'Yes', probability: yesPrice, price: yesPrice },
+          { id: `${m.ticker}-no`, name: 'No', probability: noPrice, price: noPrice },
+        ],
+        volume: m.volume || 0,
+        liquidity: m.open_interest || 0,
+        url: `https://kalshi.com/markets/${m.event_ticker}`,
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching Kalshi:', error);
+  }
+
+  return markets;
+}
+
+// Fetch Polymarket markets
+async function fetchPolymarketMarkets(): Promise<Market[]> {
+  const markets: Market[] = [];
+
+  try {
+    const response = await fetch(
+      'https://clob.polymarket.com/markets?limit=100',
+      {
+        headers: {
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Polymarket API error:', response.status);
+      return markets;
+    }
+
+    const rawMarkets = await response.json();
+
+    for (const m of rawMarkets) {
+      if (!m.active || m.closed) continue;
+
+      const { asset, category } = detectAsset(m.question || m.description || '');
+      if (!asset) continue; // Only include tracked assets
+
+      // Parse outcome prices
+      let outcomes: Outcome[] = [];
+      try {
+        const tokens = m.tokens || [];
+        if (tokens.length >= 2) {
+          outcomes = [
+            {
+              id: tokens[0]?.token_id || `${m.condition_id}-yes`,
+              name: 'Yes',
+              probability: parseFloat(tokens[0]?.price || '0.5'),
+              price: parseFloat(tokens[0]?.price || '0.5'),
+            },
+            {
+              id: tokens[1]?.token_id || `${m.condition_id}-no`,
+              name: 'No',
+              probability: parseFloat(tokens[1]?.price || '0.5'),
+              price: parseFloat(tokens[1]?.price || '0.5'),
+            },
+          ];
+        }
+      } catch {
+        continue;
+      }
+
+      if (outcomes.length < 2) continue;
+
+      markets.push({
+        id: m.condition_id,
+        platform: 'polymarket',
+        title: m.question || m.description || 'Unknown',
+        asset,
+        category,
+        endDate: m.end_date_iso ? new Date(m.end_date_iso) : undefined,
+        outcomes,
+        volume: parseFloat(m.volume || '0'),
+        liquidity: parseFloat(m.liquidity || '0'),
+        url: `https://polymarket.com/event/${m.condition_id}`,
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching Polymarket:', error);
+  }
+
+  return markets;
+}
+
+// Demo data fallback
 function getDemoData(): { polymarket: Market[]; kalshi: Market[] } {
   const endOfDay = new Date();
   endOfDay.setHours(23, 59, 59, 0);
 
   const polymarket: Market[] = [
     {
-      id: 'pm-btc-100k-daily',
+      id: 'pm-btc-100k',
       platform: 'polymarket',
       title: 'Will Bitcoin be above $100,000 by end of day?',
       asset: 'BTC',
       category: 'crypto',
-      timeFrame: 'daily',
       endDate: endOfDay,
       outcomes: [
-        { id: 'pm-btc-100k-yes', name: 'Yes', probability: 0.42, price: 0.42 },
-        { id: 'pm-btc-100k-no', name: 'No', probability: 0.58, price: 0.58 },
+        { id: 'pm-btc-yes', name: 'Yes', probability: 0.42, price: 0.42 },
+        { id: 'pm-btc-no', name: 'No', probability: 0.58, price: 0.58 },
       ],
       volume: 125000,
       liquidity: 45000,
       url: 'https://polymarket.com/event/btc-price',
     },
     {
-      id: 'pm-eth-4k-daily',
+      id: 'pm-eth-4k',
       platform: 'polymarket',
-      title: 'Will Ethereum be above $4,000 by end of day?',
+      title: 'Will Ethereum be above $4,000?',
       asset: 'ETH',
       category: 'crypto',
-      timeFrame: 'daily',
       endDate: endOfDay,
       outcomes: [
-        { id: 'pm-eth-4k-yes', name: 'Yes', probability: 0.35, price: 0.35 },
-        { id: 'pm-eth-4k-no', name: 'No', probability: 0.65, price: 0.65 },
+        { id: 'pm-eth-yes', name: 'Yes', probability: 0.35, price: 0.35 },
+        { id: 'pm-eth-no', name: 'No', probability: 0.65, price: 0.65 },
       ],
       volume: 78000,
       liquidity: 32000,
       url: 'https://polymarket.com/event/eth-price',
     },
-    {
-      id: 'pm-sol-250-daily',
-      platform: 'polymarket',
-      title: 'Will Solana be above $250 by end of day?',
-      asset: 'SOL',
-      category: 'crypto',
-      timeFrame: 'daily',
-      endDate: endOfDay,
-      outcomes: [
-        { id: 'pm-sol-250-yes', name: 'Yes', probability: 0.28, price: 0.28 },
-        { id: 'pm-sol-250-no', name: 'No', probability: 0.72, price: 0.72 },
-      ],
-      volume: 45000,
-      liquidity: 18000,
-      url: 'https://polymarket.com/event/sol-price',
-    },
-    {
-      id: 'pm-spy-500-daily',
-      platform: 'polymarket',
-      title: 'Will SPY close above $500 today?',
-      asset: 'SPY',
-      category: 'stocks',
-      timeFrame: 'daily',
-      endDate: endOfDay,
-      outcomes: [
-        { id: 'pm-spy-500-yes', name: 'Yes', probability: 0.55, price: 0.55 },
-        { id: 'pm-spy-500-no', name: 'No', probability: 0.45, price: 0.45 },
-      ],
-      volume: 95000,
-      liquidity: 40000,
-      url: 'https://polymarket.com/event/spy-price',
-    },
-    {
-      id: 'pm-tsla-400-daily',
-      platform: 'polymarket',
-      title: 'Will Tesla close above $400 today?',
-      asset: 'TSLA',
-      category: 'stocks',
-      timeFrame: 'daily',
-      endDate: endOfDay,
-      outcomes: [
-        { id: 'pm-tsla-400-yes', name: 'Yes', probability: 0.38, price: 0.38 },
-        { id: 'pm-tsla-400-no', name: 'No', probability: 0.62, price: 0.62 },
-      ],
-      volume: 68000,
-      liquidity: 28000,
-      url: 'https://polymarket.com/event/tsla-price',
-    },
-    {
-      id: 'pm-gold-2100-daily',
-      platform: 'polymarket',
-      title: 'Will Gold be above $2,100/oz by end of day?',
-      asset: 'GOLD',
-      category: 'commodities',
-      timeFrame: 'daily',
-      endDate: endOfDay,
-      outcomes: [
-        { id: 'pm-gold-2100-yes', name: 'Yes', probability: 0.62, price: 0.62 },
-        { id: 'pm-gold-2100-no', name: 'No', probability: 0.38, price: 0.38 },
-      ],
-      volume: 52000,
-      liquidity: 22000,
-      url: 'https://polymarket.com/event/gold-price',
-    },
-    {
-      id: 'pm-nvda-800-daily',
-      platform: 'polymarket',
-      title: 'Will NVIDIA close above $800 today?',
-      asset: 'NVDA',
-      category: 'stocks',
-      timeFrame: 'daily',
-      endDate: endOfDay,
-      outcomes: [
-        { id: 'pm-nvda-800-yes', name: 'Yes', probability: 0.71, price: 0.71 },
-        { id: 'pm-nvda-800-no', name: 'No', probability: 0.29, price: 0.29 },
-      ],
-      volume: 110000,
-      liquidity: 48000,
-      url: 'https://polymarket.com/event/nvda-price',
-    },
   ];
 
   const kalshi: Market[] = [
     {
-      id: 'kal-btc-100k-daily',
+      id: 'kal-btc-100k',
       platform: 'kalshi',
       title: 'Bitcoin above $100,000?',
-      description: 'Will Bitcoin trade above $100,000 before market close?',
       asset: 'BTC',
       category: 'crypto',
-      timeFrame: 'daily',
       endDate: endOfDay,
       outcomes: [
-        { id: 'kal-btc-100k-yes', name: 'Yes', probability: 0.45, price: 0.45 },
-        { id: 'kal-btc-100k-no', name: 'No', probability: 0.55, price: 0.55 },
+        { id: 'kal-btc-yes', name: 'Yes', probability: 0.45, price: 0.45 },
+        { id: 'kal-btc-no', name: 'No', probability: 0.55, price: 0.55 },
       ],
       volume: 98000,
       liquidity: 38000,
       url: 'https://kalshi.com/markets/btc-price',
     },
     {
-      id: 'kal-eth-4k-daily',
+      id: 'kal-eth-4k',
       platform: 'kalshi',
       title: 'Ethereum above $4,000?',
-      description: 'Will Ethereum trade above $4,000 before market close?',
       asset: 'ETH',
       category: 'crypto',
-      timeFrame: 'daily',
       endDate: endOfDay,
       outcomes: [
-        { id: 'kal-eth-4k-yes', name: 'Yes', probability: 0.32, price: 0.32 },
-        { id: 'kal-eth-4k-no', name: 'No', probability: 0.68, price: 0.68 },
+        { id: 'kal-eth-yes', name: 'Yes', probability: 0.32, price: 0.32 },
+        { id: 'kal-eth-no', name: 'No', probability: 0.68, price: 0.68 },
       ],
       volume: 65000,
       liquidity: 28000,
       url: 'https://kalshi.com/markets/eth-price',
-    },
-    {
-      id: 'kal-sol-250-daily',
-      platform: 'kalshi',
-      title: 'Solana above $250?',
-      description: 'Will Solana trade above $250 before market close?',
-      asset: 'SOL',
-      category: 'crypto',
-      timeFrame: 'daily',
-      endDate: endOfDay,
-      outcomes: [
-        { id: 'kal-sol-250-yes', name: 'Yes', probability: 0.31, price: 0.31 },
-        { id: 'kal-sol-250-no', name: 'No', probability: 0.69, price: 0.69 },
-      ],
-      volume: 38000,
-      liquidity: 15000,
-      url: 'https://kalshi.com/markets/sol-price',
-    },
-    {
-      id: 'kal-spy-500-daily',
-      platform: 'kalshi',
-      title: 'S&P 500 ETF above $500?',
-      description: 'Will SPY close above $500 today?',
-      asset: 'SPY',
-      category: 'stocks',
-      timeFrame: 'daily',
-      endDate: endOfDay,
-      outcomes: [
-        { id: 'kal-spy-500-yes', name: 'Yes', probability: 0.52, price: 0.52 },
-        { id: 'kal-spy-500-no', name: 'No', probability: 0.48, price: 0.48 },
-      ],
-      volume: 88000,
-      liquidity: 35000,
-      url: 'https://kalshi.com/markets/spy-price',
-    },
-    {
-      id: 'kal-tsla-400-daily',
-      platform: 'kalshi',
-      title: 'Tesla above $400?',
-      description: 'Will TSLA close above $400 today?',
-      asset: 'TSLA',
-      category: 'stocks',
-      timeFrame: 'daily',
-      endDate: endOfDay,
-      outcomes: [
-        { id: 'kal-tsla-400-yes', name: 'Yes', probability: 0.41, price: 0.41 },
-        { id: 'kal-tsla-400-no', name: 'No', probability: 0.59, price: 0.59 },
-      ],
-      volume: 72000,
-      liquidity: 30000,
-      url: 'https://kalshi.com/markets/tsla-price',
-    },
-    {
-      id: 'kal-gold-2100-daily',
-      platform: 'kalshi',
-      title: 'Gold above $2,100/oz?',
-      description: 'Will Gold trade above $2,100 per ounce today?',
-      asset: 'GOLD',
-      category: 'commodities',
-      timeFrame: 'daily',
-      endDate: endOfDay,
-      outcomes: [
-        { id: 'kal-gold-2100-yes', name: 'Yes', probability: 0.58, price: 0.58 },
-        { id: 'kal-gold-2100-no', name: 'No', probability: 0.42, price: 0.42 },
-      ],
-      volume: 48000,
-      liquidity: 20000,
-      url: 'https://kalshi.com/markets/gold-price',
-    },
-    {
-      id: 'kal-nvda-800-daily',
-      platform: 'kalshi',
-      title: 'NVIDIA above $800?',
-      description: 'Will NVDA close above $800 today?',
-      asset: 'NVDA',
-      category: 'stocks',
-      timeFrame: 'daily',
-      endDate: endOfDay,
-      outcomes: [
-        { id: 'kal-nvda-800-yes', name: 'Yes', probability: 0.68, price: 0.68 },
-        { id: 'kal-nvda-800-no', name: 'No', probability: 0.32, price: 0.32 },
-      ],
-      volume: 102000,
-      liquidity: 45000,
-      url: 'https://kalshi.com/markets/nvda-price',
     },
   ];
 
@@ -299,12 +282,10 @@ function detectArbitrage(polymarket: Market[], kalshi: Market[]): ArbitrageOppor
 
         if (!yes1 || !no1 || !yes2 || !no2) continue;
 
-        // Check for arbitrage: YES on one + NO on other < 1
+        // Arbitrage: Buy YES on one + NO on other < 1
         const combo1 = yes1.price + no2.price;
         if (combo1 < 0.99) {
           const spread = (1 - combo1) * 100;
-          const profit = ((1 / combo1) - 1) * 100;
-
           opportunities.push({
             id: `${pm.id}-${km.id}-yes-no`,
             description: `Buy YES on Polymarket @ ${(yes1.price * 100).toFixed(1)}% + NO on Kalshi @ ${(no2.price * 100).toFixed(1)}%`,
@@ -314,7 +295,7 @@ function detectArbitrage(polymarket: Market[], kalshi: Market[]): ArbitrageOppor
               { platform: 'kalshi', market: km, outcome: no2, side: 'no' },
             ],
             spread,
-            potentialProfit: profit,
+            potentialProfit: ((1 / combo1) - 1) * 100,
             confidence: spread >= 3 ? 'high' : spread >= 2 ? 'medium' : 'low',
             expiresAt: pm.endDate,
           });
@@ -323,8 +304,6 @@ function detectArbitrage(polymarket: Market[], kalshi: Market[]): ArbitrageOppor
         const combo2 = no1.price + yes2.price;
         if (combo2 < 0.99) {
           const spread = (1 - combo2) * 100;
-          const profit = ((1 / combo2) - 1) * 100;
-
           opportunities.push({
             id: `${pm.id}-${km.id}-no-yes`,
             description: `Buy NO on Polymarket @ ${(no1.price * 100).toFixed(1)}% + YES on Kalshi @ ${(yes2.price * 100).toFixed(1)}%`,
@@ -334,7 +313,7 @@ function detectArbitrage(polymarket: Market[], kalshi: Market[]): ArbitrageOppor
               { platform: 'kalshi', market: km, outcome: yes2, side: 'yes' },
             ],
             spread,
-            potentialProfit: profit,
+            potentialProfit: ((1 / combo2) - 1) * 100,
             confidence: spread >= 3 ? 'high' : spread >= 2 ? 'medium' : 'low',
             expiresAt: pm.endDate,
           });
@@ -344,12 +323,9 @@ function detectArbitrage(polymarket: Market[], kalshi: Market[]): ArbitrageOppor
         const yesDiff = Math.abs(yes1.price - yes2.price) * 100;
         if (yesDiff >= minSpread) {
           const buyPlatform = yes1.price < yes2.price ? 'polymarket' : 'kalshi';
-          const buyPrice = Math.min(yes1.price, yes2.price);
-          const sellPrice = Math.max(yes1.price, yes2.price);
-
           opportunities.push({
             id: `${pm.id}-${km.id}-discrepancy`,
-            description: `YES priced at ${(buyPrice * 100).toFixed(1)}% on ${buyPlatform}, ${(sellPrice * 100).toFixed(1)}% elsewhere`,
+            description: `YES priced at ${(Math.min(yes1.price, yes2.price) * 100).toFixed(1)}% on ${buyPlatform}, ${(Math.max(yes1.price, yes2.price) * 100).toFixed(1)}% elsewhere`,
             asset: pm.asset,
             markets: [
               { platform: 'polymarket', market: pm, outcome: yes1, side: 'yes' },
@@ -365,7 +341,6 @@ function detectArbitrage(polymarket: Market[], kalshi: Market[]): ArbitrageOppor
     }
   }
 
-  // Sort by spread descending and dedupe
   const seen = new Set<string>();
   return opportunities
     .filter(op => op.spread >= minSpread)
@@ -378,8 +353,7 @@ function detectArbitrage(polymarket: Market[], kalshi: Market[]): ArbitrageOppor
     });
 }
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
-  // Enable CORS
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -389,12 +363,30 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { polymarket, kalshi } = getDemoData();
+    // Fetch live data from both APIs
+    const [polymarketMarkets, kalshiMarkets] = await Promise.all([
+      fetchPolymarketMarkets(),
+      fetchKalshiMarkets(),
+    ]);
+
+    let polymarket = polymarketMarkets;
+    let kalshi = kalshiMarkets;
+    let isDemo = false;
+
+    // Fallback to demo data if APIs return empty
+    if (polymarket.length === 0 && kalshi.length === 0) {
+      const demo = getDemoData();
+      polymarket = demo.polymarket;
+      kalshi = demo.kalshi;
+      isDemo = true;
+    }
+
     const opportunities = detectArbitrage(polymarket, kalshi);
 
     return res.status(200).json({
       success: true,
       timestamp: new Date().toISOString(),
+      isDemo,
       data: {
         opportunities,
         markets: {

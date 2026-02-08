@@ -293,8 +293,12 @@
       <p class="subtitle">Real-time prediction market opportunities</p>
     </header>
 
-    <div class="demo-notice">
-      Demo Mode: Showing simulated market data. Connect API keys for live data.
+    <div class="demo-notice" id="status-notice" style="display: none;">
+      Demo Mode: Showing simulated market data.
+    </div>
+
+    <div class="live-notice" id="live-notice" style="display: none; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; color: #34d399; font-size: 0.9rem; text-align: center;">
+      Live Data: Connected to Polymarket and Kalshi APIs
     </div>
 
     <div class="assets-tracked">
@@ -364,6 +368,17 @@
           renderOpportunities(result.data.opportunities);
           document.getElementById('last-updated').textContent =
             `Last updated: ${new Date(result.timestamp).toLocaleTimeString()}`;
+
+          // Update status notice
+          const demoNotice = document.getElementById('status-notice');
+          const liveNotice = document.getElementById('live-notice');
+          if (result.isDemo) {
+            demoNotice.style.display = 'block';
+            liveNotice.style.display = 'none';
+          } else {
+            demoNotice.style.display = 'none';
+            liveNotice.style.display = 'block';
+          }
         } else {
           container.innerHTML = `<div class="loading"><p>Error: ${result.error}</p></div>`;
         }
